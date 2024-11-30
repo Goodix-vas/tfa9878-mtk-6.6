@@ -3500,8 +3500,16 @@ static void tfa98xx_container_loaded
 
 	tfa98xx->dsp_fw_state = TFA98XX_DSP_FW_OK;
 
+#if KERNEL_VERSION(5, 9, 0) <= LINUX_VERSION_CODE
+	/* snd_soc_component_read32, not supported later than 5.8 */
+	value = snd_soc_component_read(tfa98xx->component,
+		TFA98XX_KEY2_PROTECTED_MTP0);
+#elif KERNEL_VERSION(4, 18, 0) <= LINUX_VERSION_CODE
 	value = snd_soc_component_read32(tfa98xx->component,
 		TFA98XX_KEY2_PROTECTED_MTP0);
+#else
+	value = snd_soc_read(tfa98xx->codec, TFA98XX_KEY2_PROTECTED_MTP0);
+#endif
 	if (value != -1) {
 		tfa98xx->calibrate_done =
 			(value & TFA98XX_KEY2_PROTECTED_MTP0_MTPEX_MSK) ? 1 : 0;
@@ -3571,10 +3579,17 @@ static int tfa98xx_load_container(struct tfa98xx *tfa98xx)
 	mutex_unlock(&probe_lock);
 
 	do {
+#if KERNEL_VERSION(5, 15, 0) <= LINUX_VERSION_CODE
+		ret = request_firmware_nowait(THIS_MODULE,
+			FW_ACTION_UEVENT,
+			fw_name, tfa98xx->dev, GFP_KERNEL,
+			tfa98xx, tfa98xx_container_loaded);
+#else
 		ret = request_firmware_nowait(THIS_MODULE,
 			FW_ACTION_HOTPLUG,
 			fw_name, tfa98xx->dev, GFP_KERNEL,
 			tfa98xx, tfa98xx_container_loaded);
+#endif
 		if (!ret) {
 			/* expecting sysfs fallback mechanism */
 			pr_info("%s: dsp_fw_state %d (if done, %d)\n",
@@ -4262,10 +4277,17 @@ static struct snd_soc_dai_driver tfa98xx_dai[] = {
 			.rates = TFA98XX_RATES,
 			.formats = TFA98XX_FORMATS,
 		},
+#if KERNEL_VERSION(5, 15, 0) <= LINUX_VERSION_CODE
+		.ops = &tfa98xx_dai_ops,
+		.symmetric_rate = 1,
+		.symmetric_channels = 0,
+		.symmetric_sample_bits = 0,
+#else
 		.ops = &tfa98xx_dai_ops,
 		.symmetric_rates = 1,
 		.symmetric_channels = 0,
 		.symmetric_samplebits = 0,
+#endif
 	},
 };
 
@@ -5769,8 +5791,12 @@ int tfa98xx_write_sknt_control_channel(int channel, int value)
 }
 EXPORT_SYMBOL(tfa98xx_write_sknt_control_channel);
 
+#if KERNEL_VERSION(6, 6, 0) <= LINUX_VERSION_CODE
+static int tfa98xx_i2c_probe(struct i2c_client *i2c)
+#else
 static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 	const struct i2c_device_id *id)
+#endif
 {
 	struct snd_soc_dai_driver *dai;
 	struct tfa98xx *tfa98xx;
@@ -6042,11 +6068,20 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 	return 0;
 }
 
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+static void tfa98xx_i2c_remove(struct i2c_client *i2c)
+#else
 static int tfa98xx_i2c_remove(struct i2c_client *i2c)
+#endif
 {
 	struct tfa98xx *tfa98xx = i2c_get_clientdata(i2c);
 
 	pr_debug("addr=0x%x\n", i2c->addr);
+
+#if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
+	if (tfa98xx == NULL)
+		return;
+#endif
 
 	tfa98xx_interrupt_enable(tfa98xx, false);
 
@@ -6075,7 +6110,9 @@ static int tfa98xx_i2c_remove(struct i2c_client *i2c)
 	}
 	mutex_unlock(&tfa98xx_mutex);
 
+#if KERNEL_VERSION(6, 1, 0) > LINUX_VERSION_CODE
 	return 0;
+#endif
 }
 
 static const struct i2c_device_id tfa98xx_i2c_id[] = {

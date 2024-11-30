@@ -3,6 +3,7 @@ menu "Goodix TFA9878 amplifier configuration"
 if SND_SOC_TFA9878
 config TFA_STEREO_NODE
         bool "Stereo sysfs node support"
+        default y
         help
           Extend sysfs nodes for stereo support.
           In application, it's necessary to differ nodes between channels.

@@ -252,7 +252,6 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_TAS5720
 	imply SND_SOC_TAS6424
 	imply SND_SOC_TDA7419
-	imply SND_SOC_TFA9878
 	imply SND_SOC_TFA989X
 	imply SND_SOC_TLV320ADC3XXX
 	imply SND_SOC_TLV320ADCX140
@@ -616,12 +615,6 @@ config SND_SOC_AK5558
 config SND_SOC_ALC5623
 	tristate "Realtek ALC5623 CODEC"
 	depends on I2C
-
-config SND_SOC_TFA9878
-	tristate "Goodix TFA9878 amplifier"
-	depends on I2C
-	help
-	  Enable support for Goodix TFA9878 smart amplifier.
 
 config SND_SOC_ALC5632
 	tristate
@@ -2431,8 +2424,5 @@ config SND_SOC_LPASS_TX_MACRO
 config SND_SOC_I_SABRE_CODEC
 	tristate "Audiophonics I-SABRE Codec"
 	depends on I2C
-
-# TFA9878
-source "sound/soc/codecs/tfa9878/Kconfig"
 
 endmenu
