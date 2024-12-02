@@ -1246,7 +1246,7 @@ int tfa_calibrate(struct tfa_device *tfa)
 	tfa->is_cold = 1;
 
 	/* clear mtpex */
-	error = tfa_dev_mtp_set(tfa, TFA_MTP_EX, 0);
+	error = (enum tfa98xx_error)tfa_dev_mtp_set(tfa, TFA_MTP_EX, 0);
 	if (error) {
 		pr_info("resetting MTPEX failed (%d)\n", error);
 		tfa->reset_mtpex = 1; /* suspend until TFA98xx is active */
@@ -2379,9 +2379,6 @@ int tfa_set_bf(struct tfa_device *tfa,
 	uint8_t pos = (bf >> 4) & 0x0f;
 	uint8_t address = (bf >> 8) & 0xff;
 
-	if (bf == -1) /* undefined bitfield */
-		return 0;
-
 	err = tfa_reg_read(tfa, address, &regvalue);
 	if (err) {
 		pr_err("Error getting bf :%d\n", -err);
@@ -2422,9 +2419,6 @@ int tfa_set_bf_volatile(struct tfa_device *tfa,
 	uint8_t pos = (bf >> 4) & 0x0f;
 	uint8_t address = (bf >> 8) & 0xff;
 
-	if (bf == -1) /* undefined bitfield */
-		return 0;
-
 	err = tfa_reg_read(tfa, address, &regvalue);
 	if (err) {
 		pr_err("Error getting bf :%d\n", -err);
@@ -2459,9 +2453,6 @@ int tfa_get_bf(struct tfa_device *tfa, const uint16_t bf)
 	uint8_t pos = (bf >> 4) & 0x0f;
 	uint8_t address = (bf >> 8) & 0xff;
 
-	if (bf == -1) /* undefined bitfield */
-		return 0;
-
 	err = tfa_reg_read(tfa, address, &regvalue);
 	if (err) {
 		pr_err("Error getting bf :%d\n", -err);
@@ -2488,9 +2479,6 @@ int tfa_set_bf_value(const uint16_t bf,
 	uint8_t len = bf & 0x0f;
 	uint8_t pos = (bf >> 4) & 0x0f;
 
-	if (bf == -1) /* undefined bitfield */
-		return 0;
-
 	regvalue = *p_reg_value;
 
 	msk = ((1 << (len + 1)) - 1) << pos;
@@ -2514,9 +2502,6 @@ uint16_t tfa_get_bf_value(const uint16_t bf, const uint16_t reg_value)
 	uint8_t len = bf & 0x0f;
 	uint8_t pos = (bf >> 4) & 0x0f;
 
-	if (bf == -1) /* undefined bitfield */
-		return 0;
-
 	msk = ((1 << (len + 1)) - 1) << pos;
 	value = (reg_value & msk) >> pos;
 
@@ -2529,9 +2514,6 @@ int tfa_write_reg(struct tfa_device *tfa,
 	enum tfa98xx_error err;
 	/* bitfield enum - 8..15 : address */
 	uint8_t address = (bf >> 8) & 0xff;
-
-	if (bf == -1) /* undefined bitfield */
-		return 0;
 
 	err = tfa_reg_write(tfa, address, reg_value);
 	if (err)
@@ -2546,9 +2528,6 @@ int tfa_read_reg(struct tfa_device *tfa, const uint16_t bf)
 	uint16_t regvalue;
 	/* bitfield enum - 8..15 : address */
 	uint8_t address = (bf >> 8) & 0xff;
-
-	if (bf == -1) /* undefined bitfield */
-		return 0;
 
 	err = tfa_reg_read(tfa, address, &regvalue);
 	if (err)
@@ -3896,7 +3875,7 @@ enum tfa98xx_error tfa_wait_cal(struct tfa_device *tfa)
 			pr_info("%s: apply the whole profile setting at success\n",
 				__func__);
 
-			err = tfa_dev_switch_profile(ntfa,
+			err = (enum tfa98xx_error)tfa_dev_switch_profile(ntfa,
 				ntfa->next_profile, ntfa->vstep);
 			if (err != TFA98XX_ERROR_OK)
 				pr_err("%s: error in switch profile (%d)\n",
@@ -3931,9 +3910,10 @@ int tfa_run_damage_check(struct tfa_device *tfa,
 		ntfa->spkr_damaged
 			= (TFA_GET_BIT_VALUE(dsp_status,
 			i + 1)) ? 1 : 0;
-		pr_info("%s: damage flag update %d (dev %d, channel %d)\n",
+		pr_info("%s: damage flag update %d, event %d (dev %d, channel %d)\n",
 			__func__,
 			ntfa->spkr_damaged,
+			damage_event,
 			ntfa->dev_idx, i);
 		damaged |= ntfa->spkr_damaged;
 	}
@@ -3961,9 +3941,10 @@ int tfa_run_vval_result_check(struct tfa_device *tfa,
 		ntfa->vval_result
 			= (TFA_GET_BIT_VALUE(dsp_status,
 			i + 3)) ? VVAL_FAIL : VVAL_PASS;
-		pr_info("%s: V validation flag update %d (dev %d, channel %d)\n",
+		pr_info("%s: V validation flag update %d event %d (dev %d, channel %d)\n",
 			__func__,
 			ntfa->vval_result,
+			vval_event,
 			ntfa->dev_idx, i);
 		vvaL_result |= ntfa->vval_result;
 	}
@@ -4492,7 +4473,7 @@ tfa_dev_start_exit:
 		tfa_set_status_flag(tfa, TFA_SET_DEVICE, -1);
 	mutex_unlock(&dev_lock);
 
-	return err;
+	return (enum tfa_error)err;
 }
 
 enum tfa_error tfa_dev_switch_profile(struct tfa_device *tfa,
@@ -4517,7 +4498,7 @@ enum tfa_error tfa_dev_switch_profile(struct tfa_device *tfa,
 
 		err = tfa_cont_write_profile(tfa, next_profile, vstep);
 		if (err != TFA98XX_ERROR_OK)
-			return err;
+			return (enum tfa_error)err;
 	}
 
 	/* If the profile contains the .standby suffix go
@@ -4529,9 +4510,9 @@ enum tfa_error tfa_dev_switch_profile(struct tfa_device *tfa,
 
 		pr_info("%s: skip switching dev %d for standby profile\n",
 			__func__, tfa->dev_idx);
-		err = tfa_dev_stop(tfa);
+		err = (enum tfa98xx_error)tfa_dev_stop(tfa);
 
-		return err;
+		return (enum tfa_error)err;
 	} else if (TFA_GET_BF(tfa, PWDN) != 0) {
 		err = tfa98xx_powerdown(tfa, 0);
 	}
@@ -4543,18 +4524,18 @@ enum tfa_error tfa_dev_switch_profile(struct tfa_device *tfa,
 		&& (vstep != tfa->vstep) && (vstep != -1)) {
 		err = tfa_cont_write_files_vstep(tfa, next_profile, vstep);
 		if (err != TFA98XX_ERROR_OK)
-			return err;
+			return (enum tfa_error)err;
 	}
 
 	/* Always search and apply filters after a startup */
 	err = tfa_set_filters(tfa, next_profile);
 	if (err != TFA98XX_ERROR_OK)
-		return err;
+		return (enum tfa_error)err;
 
 	tfa_dev_set_swprof(tfa, (unsigned short)next_profile);
 	tfa_dev_set_swvstep(tfa, (unsigned short)vstep);
 
-	return err;
+	return (enum tfa_error)err;
 }
 
 enum tfa_error tfa_dev_stop(struct tfa_device *tfa)
@@ -4578,7 +4559,7 @@ enum tfa_error tfa_dev_stop(struct tfa_device *tfa)
 	/* powerdown CF */
 	err = tfa98xx_powerdown(tfa, 1);
 	if (err != TFA98XX_ERROR_OK)
-		return err;
+		return (enum tfa_error)err;
 
 	/* disable I2S output on TFA1 devices without TDM */
 	err = tfa98xx_aec_output(tfa, 0);
