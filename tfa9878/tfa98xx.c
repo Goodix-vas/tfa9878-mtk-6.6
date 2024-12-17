@@ -984,7 +984,7 @@ static ssize_t tfa98xx_dbgfs_dsp_write(struct file *file,
 	return count;
 }
 /* -- DSP */
-
+#if 0
 static ssize_t tfa98xx_dbgfs_spkr_damaged_get(struct file *file,
 	char __user *user_buf, size_t count, loff_t *ppos)
 {
@@ -1017,7 +1017,7 @@ static ssize_t tfa98xx_dbgfs_spkr_damaged_get(struct file *file,
 
 	return ret;
 }
-
+#endif
 static int tfa98xx_dbgfs_pga_gain_get(void *data, u64 *val)
 {
 	struct i2c_client *i2c = (struct i2c_client *)data;
@@ -1139,17 +1139,17 @@ static ssize_t tfa98xx_dbgfs_show_cal_read(struct file *file,
 		count, ppos, out_buf, sizeof(out_buf));
 }
 
+#if 0
 /* Direct registers access - provide register address in hex */
 #define TFA98XX_DEBUGFS_REG_SET(__reg)	\
 static int tfa98xx_dbgfs_reg_##__reg##_set(void *data, u64 val)\
 {\
 	struct i2c_client *i2c = (struct i2c_client *)data;\
 	struct tfa98xx *tfa98xx = i2c_get_clientdata(i2c);\
-	unsigned int ret, value;\
+	int ret;\
 \
 	ret = regmap_write(tfa98xx->regmap, 0x##__reg, (val & 0xffff));\
-	value = val & 0xffff;\
-	return 0;\
+	return ret;\
 } \
 static int tfa98xx_dbgfs_reg_##__reg##_get(void *data, u64 *val)\
 {\
@@ -1160,7 +1160,7 @@ static int tfa98xx_dbgfs_reg_##__reg##_get(void *data, u64 *val)\
 \
 	ret = regmap_read(tfa98xx->regmap, 0x##__reg, &value);\
 	*val = value;\
-	return 0;\
+	return ret;\
 } \
 DEFINE_SIMPLE_ATTRIBUTE(tfa98xx_dbgfs_reg_##__reg##_fops,\
 	tfa98xx_dbgfs_reg_##__reg##_get,\
@@ -1192,6 +1192,7 @@ TFA98XX_DEBUGFS_REG_SET(12);
 TFA98XX_DEBUGFS_REG_SET(13);
 TFA98XX_DEBUGFS_REG_SET(22);
 TFA98XX_DEBUGFS_REG_SET(25);
+#endif
 
 DEFINE_SIMPLE_ATTRIBUTE(tfa98xx_dbgfs_calib_otc_fops,
 	tfa98xx_dbgfs_otc_get,
@@ -1258,14 +1259,14 @@ static const struct file_operations tfa98xx_dbgfs_dsp_fops = {
 	.write = tfa98xx_dbgfs_dsp_write,
 	.llseek = default_llseek,
 };
-
+#if 0
 static const struct file_operations tfa98xx_dbgfs_spkr_damaged_fops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
 	.read = tfa98xx_dbgfs_spkr_damaged_get,
 	.llseek = default_llseek,
 };
-
+#endif
 static const struct file_operations tfa98xx_dbgfs_trace_level_fops = {
 	.owner = THIS_MODULE,
 	.open = simple_open,
@@ -1411,7 +1412,7 @@ static int tfa98xx_run_calibration(struct tfa98xx *tfa98xx0)
 	}
 
 	/* EXT_TEMP */
-	ret = tfa98xx_read_reference_temp(&temp_val);
+	ret = (enum tfa_error)tfa98xx_read_reference_temp(&temp_val);
 	if (ret) {
 		pr_err("%s: error in reading reference temp\n",
 			__func__);
@@ -4857,8 +4858,8 @@ static ssize_t tfa98xx_blackbox_show(struct device *dev,
 	if (tfa98xx_count_active_stream(BIT_PSTREAM) > 0)
 		err = tfa_update_log();
 
-	pr_info("blackbox state: %d\n",
-		tfa0->blackbox_enable);
+	pr_info("blackbox state: %d %d\n",
+		tfa0->blackbox_enable, err);
 
 	for (idx = 0; idx < ndev; idx++) {
 		offset = idx * ID_BLACKBOX_MAX;
@@ -5792,9 +5793,9 @@ int tfa98xx_write_sknt_control_channel(int channel, int value)
 EXPORT_SYMBOL(tfa98xx_write_sknt_control_channel);
 
 #if KERNEL_VERSION(6, 6, 0) <= LINUX_VERSION_CODE
-static int tfa98xx_i2c_probe(struct i2c_client *i2c)
+int tfa98xx_i2c_probe(struct i2c_client *i2c)
 #else
-static int tfa98xx_i2c_probe(struct i2c_client *i2c,
+int tfa98xx_i2c_probe(struct i2c_client *i2c,
 	const struct i2c_device_id *id)
 #endif
 {
@@ -6064,14 +6065,15 @@ static int tfa98xx_i2c_probe(struct i2c_client *i2c,
 	tfa98xx_device_count++;
 	list_add(&tfa98xx->list, &tfa98xx_device_list); /* stack */
 	mutex_unlock(&tfa98xx_mutex);
-
+	mtk_spk_set_type(MTK_SPK_GOODIX_TFA9878);
 	return 0;
 }
+EXPORT_SYMBOL(tfa98xx_i2c_probe);
 
 #if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
-static void tfa98xx_i2c_remove(struct i2c_client *i2c)
+void tfa98xx_i2c_remove(struct i2c_client *i2c)
 #else
-static int tfa98xx_i2c_remove(struct i2c_client *i2c)
+int tfa98xx_i2c_remove(struct i2c_client *i2c)
 #endif
 {
 	struct tfa98xx *tfa98xx = i2c_get_clientdata(i2c);
@@ -6114,6 +6116,7 @@ static int tfa98xx_i2c_remove(struct i2c_client *i2c)
 	return 0;
 #endif
 }
+EXPORT_SYMBOL(tfa98xx_i2c_remove);
 
 static const struct i2c_device_id tfa98xx_i2c_id[] = {
 	{"tfa98xx", 0},
@@ -6138,7 +6141,6 @@ static const struct of_device_id tfa98xx_dt_match[] = {
 	{},
 };
 #endif
-
 static struct i2c_driver tfa98xx_i2c_driver = {
 	.driver = {
 		.name = "tfa98xx",
@@ -6174,7 +6176,6 @@ static int __init tfa98xx_i2c_init(void)
 	}
 
 	ret = i2c_add_driver(&tfa98xx_i2c_driver);
-
 	return ret;
 }
 module_init(tfa98xx_i2c_init);

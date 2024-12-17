@@ -18,7 +18,7 @@ endif
 TFA98XX_FLAGS            := -DUSE_TFA9878
 ifeq ($(CONFIG_PLATFORM_MTK),y)
 TFA98XX_FLAGS            += -DMPLATFORM
-subdir-ccflags-y         += -I$(srctree)/sound/soc/mediatek/common
+subdir-ccflags-y         += -I$(DEVICE_MODULES_PATH)/sound/soc/mediatek/common
 endif
 
 # cc flags
